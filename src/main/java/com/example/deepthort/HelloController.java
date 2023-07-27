@@ -207,6 +207,8 @@ public class HelloController implements Initializable {
             LocalDate receiptDateValue = receiptDate1.getValue();
             Date receiptDate = (receiptDateValue != null) ? java.sql.Date.valueOf(receiptDateValue) : null;
 
+            int employeeId = getEmployeeIdFromDatabase(selectedEmployee.getName());
+
             try {
                 String query = "UPDATE employee2 SET employee_name=?, employee_surname=?, employee_lastname=?, " +
                         "employee_spec=?, employee_number=?, employee_brithdate=?, employee_receiptdate=?, employee_status=? " +
@@ -221,10 +223,11 @@ public class HelloController implements Initializable {
                 preparedStatement.setDate(6, (java.sql.Date) brithDate);
                 preparedStatement.setDate(7, (java.sql.Date) receiptDate);
                 preparedStatement.setString(8, status);
-                preparedStatement.setInt(9, selectedEmployee.getID());
+                preparedStatement.setInt(9, employeeId);
+
+                System.out.println(employeeId);
 
                 System.out.println("!!!!!");
-                System.out.println(name);
 
                 int rowsUpdated = preparedStatement.executeUpdate();
                 System.out.println(rowsUpdated);
@@ -232,6 +235,31 @@ public class HelloController implements Initializable {
                 if (rowsUpdated > 0) {
                     System.out.println("Данные успешно обновлены в базе данных.");
                 }
+
+                // Показываем всплывающее окно с подтверждением перед сохранением
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Подтверждение");
+                alert.setHeaderText("Вы действительно хотите сохранить изменения?");
+                alert.setContentText("После сохранения изменения будут внесены в базу данных.");
+
+                // Определение кнопок в диалоге
+                ButtonType buttonTypeSave = new ButtonType("Сохранить");
+                ButtonType buttonTypeCancel = new ButtonType("Отмена");
+
+                alert.getButtonTypes().setAll(buttonTypeSave, buttonTypeCancel);
+
+                // Ожидаем выбора пользователя
+                alert.showAndWait().ifPresent(buttonType -> {
+                    if (buttonType == buttonTypeSave) {
+                        // Пользователь нажал "Сохранить", выполняем сохранение
+                        try {
+                            preparedStatement.executeUpdate();
+                            System.out.println("Данные успешно обновлены в базе данных.");
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                });
 
                 changeButton.setText("Изменить");
                 changeButton.setOnAction(this::onChangeButton);
@@ -246,6 +274,27 @@ public class HelloController implements Initializable {
                 ex.printStackTrace();
             }
         }
+    }
+
+    private int getEmployeeIdFromDatabase(String name) {
+        int employeeId = 0;
+        try {
+            String query = "SELECT employee_id FROM employee2 WHERE employee_name = ?";
+            PreparedStatement preparedStatement = conn.prepareStatement(query);
+            preparedStatement.setString(1, name);
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                employeeId = resultSet.getInt("employee_id");
+            } else {
+                // Обработайте ситуацию, когда сотрудник не найден в базе данных
+                System.out.println("Сотрудник не найден в базе данных.");
+            }
+            preparedStatement.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return employeeId;
     }
 
     @FXML
@@ -267,6 +316,7 @@ public class HelloController implements Initializable {
             if (result == ButtonType.OK) {
                 // Пользователь подтвердил удаление, выполняем удаление
                 deleteEmployee(selectedEmployee);
+                loadDataFromDatabase();
             }
         }
     }
@@ -359,7 +409,6 @@ public class HelloController implements Initializable {
                 row.createCell(8).setCellValue(resultSet.getString("employee_status"));
             }
 
-            // Добавляем дату выгрузки в последнюю ячейку
             // Получаем текущую дату и время
             LocalDateTime now = LocalDateTime.now();
 

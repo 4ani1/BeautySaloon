@@ -25,11 +25,6 @@ public class Employee {
         this.status = status;
     }
 
-    public Employee(int id, String surName) {
-        this.id = id;
-        this.surName = surName;
-    }
-
     public String getSurName() {
         return surName;
     }
